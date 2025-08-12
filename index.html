@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>랜덤 번호 뽑기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .highlight-name {
+            animation: text-flicker 0.1s infinite;
+        }
+        @keyframes text-flicker {
+            0% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+            100% { opacity: 0.8; transform: scale(1); }
+        }
+        .winner-animation {
+            animation: winner-pop 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+        @keyframes winner-pop {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        /* 체크박스 비활성화 시 스타일 */
+        input[type="checkbox"]:disabled + label {
+            cursor: not-allowed;
+            color: #9ca3af; /* gray-400 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8">
+        
+        <!-- 헤더 -->
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">랜덤 번호 뽑기</h1>
+            <p class="text-gray-500 mt-2">원하는 규칙을 적용하여 숫자를 뽑아보세요.</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 왼쪽: 입력 및 설정 -->
+            <div class="flex flex-col space-y-4">
+                <div>
+                    <label for="start-number" class="block text-lg font-semibold text-gray-700 mb-2">번호 범위</label>
+                    <div class="flex items-center space-x-2">
+                        <input id="start-number" type="number" value="1" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-center">
+                        <span class="text-gray-500 font-bold">~</span>
+                        <input id="end-number" type="number" value="50" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-center">
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">규칙 추가</h3>
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+                        <div class="flex items-center">
+                            <input id="exclude-picked-chk" type="checkbox" checked class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <label for="exclude-picked-chk" class="ml-3 font-medium text-gray-700">한 번 뽑힌 번호는 다시 뽑지 않기</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input id="even-only-chk" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <label for="even-only-chk" class="ml-3 font-medium text-gray-700">짝수만 뽑기</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input id="odd-only-chk" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <label for="odd-only-chk" class="ml-3 font-medium text-gray-700">홀수만 뽑기</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽: 뽑기 결과 및 현황 -->
+            <div class="flex flex-col space-y-4">
+                <!-- 뽑기 결과 디스플레이 -->
+                <div class="bg-indigo-600 text-white rounded-lg flex items-center justify-center h-48 text-center p-4">
+                    <div id="result-display" class="text-5xl font-bold">?</div>
+                </div>
+                
+                <!-- 뽑기/초기화 버튼 -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="draw-button" class="w-full bg-indigo-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 active:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
+                        뽑기!
+                    </button>
+                    <button id="reset-button" class="w-full bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-transform transform hover:scale-105">
+                        초기화
+                    </button>
+                </div>
+
+                <!-- 뽑힌 번호 목록 -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">뽑힌 번호들</h3>
+                    <div id="picked-list" class="bg-gray-50 border border-gray-200 rounded-lg p-3 h-24 overflow-y-auto text-gray-600">
+                        <p class="text-gray-400">아직 뽑힌 번호가 없습니다.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 메시지 창 -->
+        <div id="message-box" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+                <p id="message-text" class="text-lg"></p>
+                <button id="message-close" class="mt-4 bg-indigo-500 text-white px-4 py-2 rounded-lg">확인</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // DOM 요소 가져오기
+        const startNumberInput = document.getElementById('start-number');
+        const endNumberInput = document.getElementById('end-number');
+        const drawButton = document.getElementById('draw-button');
+        const resetButton = document.getElementById('reset-button');
+        const resultDisplay = document.getElementById('result-display');
+        const pickedListDiv = document.getElementById('picked-list');
+        const excludePickedChk = document.getElementById('exclude-picked-chk');
+        const evenOnlyChk = document.getElementById('even-only-chk');
+        const oddOnlyChk = document.getElementById('odd-only-chk');
+
+        // 메시지 박스 관련 요소
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+        const messageClose = document.getElementById('message-close');
+
+        // 상태 변수
+        let pickedNumbers = [];
+        let animationInterval;
+
+        // 메시지 박스 보이기 함수
+        function showMessage(message) {
+            messageText.textContent = message;
+            messageBox.classList.remove('hidden');
+        }
+
+        // 메시지 박스 닫기 이벤트
+        messageClose.addEventListener('click', () => {
+            messageBox.classList.add('hidden');
+        });
+        
+        // 짝수/홀수 체크박스 상호작용 로직
+        evenOnlyChk.addEventListener('change', () => {
+            if (evenOnlyChk.checked) {
+                oddOnlyChk.checked = false;
+                oddOnlyChk.disabled = true;
+            } else {
+                oddOnlyChk.disabled = false;
+            }
+        });
+
+        oddOnlyChk.addEventListener('change', () => {
+            if (oddOnlyChk.checked) {
+                evenOnlyChk.checked = false;
+                evenOnlyChk.disabled = true;
+            } else {
+                evenOnlyChk.disabled = false;
+            }
+        });
+
+        // 뽑기 버튼 클릭 이벤트
+        drawButton.addEventListener('click', () => {
+            const start = parseInt(startNumberInput.value);
+            const end = parseInt(endNumberInput.value);
+
+            if (isNaN(start) || isNaN(end)) {
+                showMessage('유효한 숫자를 입력해주세요.');
+                return;
+            }
+            if (start > end) {
+                showMessage('시작 번호는 끝 번호보다 작거나 같아야 합니다.');
+                return;
+            }
+
+            // 1. 규칙에 따라 뽑을 수 있는 전체 번호 목록 생성
+            let numberPool = [];
+            for (let i = start; i <= end; i++) {
+                numberPool.push(i);
+            }
+
+            // 짝수/홀수 규칙 적용
+            if (evenOnlyChk.checked) {
+                numberPool = numberPool.filter(num => num % 2 === 0);
+            } else if (oddOnlyChk.checked) {
+                numberPool = numberPool.filter(num => num % 2 !== 0);
+            }
+            
+            if (numberPool.length === 0) {
+                showMessage('현재 규칙으로 뽑을 수 있는 번호가 없습니다.');
+                return;
+            }
+
+            // 2. '뽑힌 번호 제외' 규칙 적용
+            let availableNumbers = numberPool;
+            if (excludePickedChk.checked) {
+                availableNumbers = numberPool.filter(num => !pickedNumbers.includes(num));
+            }
+
+            if (availableNumbers.length === 0) {
+                showMessage('더 이상 뽑을 번호가 없습니다! 초기화 버튼을 눌러주세요.');
+                return;
+            }
+
+            // 3. 애니메이션 및 뽑기 실행
+            startDrawingAnimation(availableNumbers);
+        });
+
+        // 초기화 버튼 클릭 이벤트
+        resetButton.addEventListener('click', () => {
+            pickedNumbers = [];
+            updatePickedList();
+            resultDisplay.textContent = '?';
+            resultDisplay.classList.remove('winner-animation');
+            showMessage('뽑힌 번호 목록을 초기화했습니다.');
+        });
+
+        // 뽑기 애니메이션 함수
+        function startDrawingAnimation(availableNumbers) {
+            drawButton.disabled = true;
+            resetButton.disabled = true;
+            drawButton.classList.add('opacity-50', 'cursor-not-allowed');
+            resetButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+            let duration = 3000; // 총 애니메이션 시간 (3초)
+            let intervalTime = 50; // 초기 번호 변경 간격
+
+            resultDisplay.classList.add('highlight-name');
+            resultDisplay.classList.remove('winner-animation');
+
+            // 번호 룰렛 효과
+            animationInterval = setInterval(() => {
+                const randomIndex = Math.floor(Math.random() * availableNumbers.length);
+                resultDisplay.textContent = availableNumbers[randomIndex];
+            }, intervalTime);
+            
+            // 시간이 지나면 점점 느려지는 효과
+            setTimeout(() => { clearInterval(animationInterval); intervalTime = 100; animationInterval = setInterval(() => { const randomIndex = Math.floor(Math.random() * availableNumbers.length); resultDisplay.textContent = availableNumbers[randomIndex]; }, intervalTime); }, 1500);
+            setTimeout(() => { clearInterval(animationInterval); intervalTime = 200; animationInterval = setInterval(() => { const randomIndex = Math.floor(Math.random() * availableNumbers.length); resultDisplay.textContent = availableNumbers[randomIndex]; }, intervalTime); }, 2200);
+
+            // 최종 결과 선택
+            setTimeout(() => {
+                clearInterval(animationInterval);
+                
+                const winnerIndex = Math.floor(Math.random() * availableNumbers.length);
+                const winner = availableNumbers[winnerIndex];
+
+                resultDisplay.textContent = winner;
+                resultDisplay.classList.remove('highlight-name');
+                resultDisplay.classList.add('winner-animation');
+
+                // 뽑힌 번호 목록에 중복 없이 추가
+                if (!pickedNumbers.includes(winner)) {
+                    pickedNumbers.push(winner);
+                }
+                updatePickedList();
+
+                drawButton.disabled = false;
+                resetButton.disabled = false;
+                drawButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                resetButton.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            }, duration);
+        }
+
+        // 뽑힌 번호 목록 UI 업데이트 함수
+        function updatePickedList() {
+            pickedNumbers.sort((a, b) => a - b); // 번호를 오름차순으로 정렬
+            if (pickedNumbers.length === 0) {
+                pickedListDiv.innerHTML = '<p class="text-gray-400">아직 뽑힌 번호가 없습니다.</p>';
+            } else {
+                pickedListDiv.innerHTML = '';
+                pickedNumbers.forEach(num => {
+                    const numTag = document.createElement('span');
+                    numTag.className = 'inline-block bg-gray-200 text-gray-800 text-sm font-medium mr-2 mb-2 px-2.5 py-0.5 rounded-full';
+                    numTag.textContent = num;
+                    pickedListDiv.appendChild(numTag);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
